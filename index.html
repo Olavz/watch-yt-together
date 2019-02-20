@@ -1,0 +1,112 @@
+<div style="padding: 30px; margin: auto; width: 1100px">
+    <div id="video-placeholder"></div>
+    <br>
+    <br>
+    <button id="play">Perfect start</button>
+    <input id="q" placeholder="https://www.youtube.com/watch?v=bC0HlNMJqWI" />
+    <button id="queue">Queue</button>
+    <button id="direct">Fuck this watch now</button>
+
+    <br><br>
+    <div id="video_queue"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+
+<script>
+
+
+var player;
+var socket = io();
+
+$(function () {
+    
+    socket.on('play', function(msg){
+        player.playVideo();
+    });
+
+    socket.on('pause', function(msg){
+        player.pauseVideo();
+    });
+
+    socket.on('seek', function(msg){
+        player.seekTo(msg);
+        console.log("Seeking to: " + msg);
+    });
+    socket.on('ask_time', function(msg){
+        console.log(msg);
+        socket.emit('answer_time', player.getCurrentTime());
+    });
+    socket.on('work', function(work){
+        console.log(work);
+    });
+    socket.on('direct', function(youtubeId){
+        player.loadVideoById(youtubeId);
+    });
+
+    socket.on('queue', function(msg) {
+        $("#video_queue").append('<img ytid="'+msg+'" width="200px" src="https://i.ytimg.com/vi_webp/'+msg+'/maxresdefault.webp" />');
+    });
+
+    $('#play').on('click', function () {
+        socket.emit('play', 'true');
+    });
+    $('#queue').on('click', function () {
+        var youtubeId = getYoutubeIdFromBox();
+        socket.emit('queue', youtubeId);
+    });
+    $('#direct').on('click', function () {
+        var youtubeId = getYoutubeIdFromBox();
+        socket.emit('direct', youtubeId);
+    });
+    
+});
+
+function getYoutubeIdFromBox() {
+    var url = $("#q").val();
+    return url.match(/v=([a-zA-Z0-9_\-]+)/)[1];
+}
+
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('video-placeholder', {
+        width: 1100,
+        height: 600,
+        videoId: 'Xa0Q0J5tOP0',
+        playerVars: {
+            color: 'white'
+        },
+        events: {
+            onReady: initialize,
+            onStateChange: stateChanged
+        }
+    });
+}
+
+function stateChanged(e) {
+    console.log(e);
+    if(e.data == 1) {
+        // Play
+        socket.emit('play');
+    }
+    if(e.data == 2) {
+        // Paused
+        socket.emit('pause');
+    }
+    if(e.data == 3) {
+        // Buffering
+        socket.emit('seek', player.getCurrentTime());
+    }
+    if(e.data == 0) {
+        // Completed
+        socket.emit('nextVideo');
+    }
+}
+
+function initialize(){
+
+}
+
+
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
